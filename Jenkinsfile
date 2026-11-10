@@ -54,6 +54,8 @@ pipeline {
                     docker run -d \
                         --name "$CONTAINER_NAME" \
                         --restart unless-stopped \
+			--memory=512m \
+			--cpus=1 \
                         -p 80:$APP_PORT \
                         "$DOCKER_IMAGE:$IMAGE_TAG"
                 '''
@@ -85,6 +87,8 @@ pipeline {
                         docker run -d \
                             --name "$CONTAINER_NAME" \
                             --restart unless-stopped \
+			    --memory=512m \
+			    --cpus=1 \
                             -p 80:$APP_PORT \
                             "$PREVIOUS_IMAGE"
 
