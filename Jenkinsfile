@@ -60,12 +60,6 @@ pipeline {
             }
         }
 
-	stage('Rollback Test'){
-	    steps{
-		sh 'echo "Testing rollback..." && exit 1'
-	    }
-	}
-
         stage('Health Check') {
             steps {
                 sh '''
