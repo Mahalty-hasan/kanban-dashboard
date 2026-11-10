@@ -6,6 +6,7 @@ pipeline {
         DOCKER_CREDENTIALS = 'dockerhub-credentials'
         CONTAINER_NAME = 'kanban-app'
         APP_PORT = '8080'
+        PREVIOUS_IMAGE_FILE = "/tmp/kanban-previous-image-${BUILD_NUMBER}"
     }
 
     stages {
@@ -43,6 +44,9 @@ pipeline {
         stage('Deploy to EC2') {
             steps {
                 sh '''
+                    docker inspect --format='{{.Config.Image}}' "$CONTAINER_NAME" \
+                        > "$PREVIOUS_IMAGE_FILE" 2>/dev/null || true
+
                     docker pull "$DOCKER_IMAGE:$IMAGE_TAG"
 
                     docker rm -f "$CONTAINER_NAME" 2>/dev/null || true
@@ -68,11 +72,35 @@ pipeline {
     }
 
     post {
+        failure {
+            script {
+                sh '''
+                    echo "Deployment failed. Starting rollback..."
+
+                    if [ -s "$PREVIOUS_IMAGE_FILE" ]; then
+                        PREVIOUS_IMAGE=$(cat "$PREVIOUS_IMAGE_FILE")
+
+                        docker rm -f "$CONTAINER_NAME" 2>/dev/null || true
+
+                        docker run -d \
+                            --name "$CONTAINER_NAME" \
+                            --restart unless-stopped \
+                            -p 80:$APP_PORT \
+                            "$PREVIOUS_IMAGE"
+
+                        sleep 10
+
+                        docker inspect --format='{{.State.Health.Status}}' "$CONTAINER_NAME"
+                        echo "Rollback attempted."
+                    else
+                        echo "No previous image found. Nothing to roll back to."
+                    fi
+                '''
+            }
+        }
+
         success {
             echo 'Kanban application deployed successfully!'
-        }
-        failure {
-            echo 'Pipeline failed. Check the Jenkins console output.'
         }
     }
 }
